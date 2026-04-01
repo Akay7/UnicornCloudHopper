@@ -12,7 +12,10 @@
 </head>
 <body>
 <canvas id="c"></canvas>
-<script>
+<script type="module">
+import { drawUnicorn } from './src/drawUnicorn.js';
+import { drawCloud }   from './src/drawCloud.js';
+import { drawSun }     from './src/drawSun.js';
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
@@ -49,7 +52,7 @@ function reset() {
   uni = {
     x: W * 0.22, y: H * 0.5,
     vy: 0, angle: 0,
-    w: 52, h: 44,
+    w: 70, h: 38,
     onCloud: false, dead: false,
     fallY: 0
   };
@@ -103,7 +106,7 @@ function flap() {
   if (state === 'start') { state = 'play'; }
   if (state === 'play' && !uni.dead) {
     uni.vy = FLAP_FORCE;
-    addParticles(uni.x - 10, uni.y + 10, '#e8b4ff');
+    addParticles(uni.x - 28, uni.y + 4, '#e8b4ff');
   }
   if (state === 'dead') reset();
 }
@@ -111,97 +114,6 @@ canvas.addEventListener('click',   flap);
 canvas.addEventListener('touchstart', e => { e.preventDefault(); flap(); }, {passive:false});
 document.addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); flap(); }});
 
-// ── Draw helpers ──────────────────────────────────────────────
-function drawCloud(x, y, w, h, alpha=1) {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  const cx = x + w/2, cy = y + h/2;
-  const grad = ctx.createRadialGradient(cx, cy-4, 2, cx, cy, w*0.6);
-  grad.addColorStop(0, '#ffffff');
-  grad.addColorStop(1, '#dff0ff');
-  ctx.fillStyle = grad;
-  ctx.shadowColor = 'rgba(150,200,255,0.6)';
-  ctx.shadowBlur  = 10;
-  // puffs
-  const puffs = [
-    [cx,        cy,       w*0.28],
-    [cx-w*0.22, cy+h*0.1, w*0.20],
-    [cx+w*0.22, cy+h*0.1, w*0.20],
-    [cx-w*0.12, cy-h*0.2, w*0.22],
-    [cx+w*0.12, cy-h*0.18,w*0.20],
-  ];
-  ctx.beginPath();
-  puffs.forEach(([px,py,pr]) => ctx.arc(px, py, pr, 0, Math.PI*2));
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawUnicorn(x, y, angle, flicker) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle);
-
-  // Rainbow trail
-  if (state === 'play') {
-    const cols = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff'];
-    for (let i = 0; i < 5; i++) {
-      ctx.beginPath();
-      ctx.arc(-18 - i*8, 4 + (i%2)*3, 3 - i*0.3, 0, Math.PI*2);
-      ctx.fillStyle = cols[i];
-      ctx.globalAlpha = 0.7 - i*0.12;
-      ctx.fill();
-    }
-  }
-  ctx.globalAlpha = 1;
-
-  // Body glow
-  const glow = ctx.createRadialGradient(0,0,4,0,0,28);
-  glow.addColorStop(0, 'rgba(255,220,255,0.5)');
-  glow.addColorStop(1, 'rgba(255,220,255,0)');
-  ctx.fillStyle = glow;
-  ctx.beginPath(); ctx.arc(0,0,28,0,Math.PI*2); ctx.fill();
-
-  // Emoji unicorn
-  ctx.font = '38px serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  if (flicker && Math.floor(Date.now()/80)%2===0) ctx.globalAlpha = 0.3;
-  ctx.fillText('🦄', 0, 0);
-  ctx.globalAlpha = 1;
-
-  ctx.restore();
-}
-
-function drawSun() {
-  const sx = W - 58, sy = 52, sr = 26;
-  // Rays
-  ctx.save();
-  ctx.translate(sx, sy);
-  ctx.rotate(frame * 0.008);
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * Math.PI * 2;
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(a)*(sr+4), Math.sin(a)*(sr+4));
-    ctx.lineTo(Math.cos(a)*(sr+14), Math.sin(a)*(sr+14));
-    ctx.strokeStyle = 'rgba(255,220,50,0.7)';
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-  }
-  ctx.restore();
-  // Disc
-  const g = ctx.createRadialGradient(sx,sy,2,sx,sy,sr);
-  g.addColorStop(0,'#fff176');
-  g.addColorStop(1,'#ffd600');
-  ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2);
-  ctx.fillStyle = g;
-  ctx.shadowColor='rgba(255,200,0,0.6)'; ctx.shadowBlur=16;
-  ctx.fill();
-  ctx.shadowBlur=0;
-  // Emoji
-  ctx.font='28px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('🌞', sx, sy);
-}
 
 function drawHUD() {
   // Score
@@ -313,10 +225,10 @@ function draw() {
   });
 
   // Background clouds
-  bgClouds.forEach(c => drawCloud(c.x, c.y, c.w, 30, c.alpha));
+  bgClouds.forEach(c => drawCloud(ctx, c.x, c.y, c.w, 30, c.alpha));
 
   // Game clouds
-  clouds.forEach(c => drawCloud(c.x, c.y, c.w, c.h));
+  clouds.forEach(c => drawCloud(ctx, c.x, c.y, c.w, c.h));
 
   // Particles
   particles.forEach(p => {
@@ -328,11 +240,11 @@ function draw() {
   });
 
   // Unicorn
-  const flicker = state==='dead';
-  drawUnicorn(uni.x, uni.y, uni.angle, flicker);
+  const flicker = state === 'dead';
+  drawUnicorn(ctx, uni.x, uni.y, uni.angle, flicker, frame, uni.onCloud, state === 'play');
 
   // Sun
-  drawSun();
+  drawSun(ctx, W, frame);
 
   // HUD
   if (state !== 'start') drawHUD();

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Unicorn Debug</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a0533; display: flex; flex-direction: column; align-items: center; padding: 16px; gap: 12px; font-family: sans-serif; color: #fff; }
+  canvas { background: #6ed6ff; border-radius: 8px; cursor: crosshair; }
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  button { padding: 8px 16px; border-radius: 6px; border: none; background: #7c3aed; color: #fff; cursor: pointer; font-size: 14px; }
+  button.active { background: #c084fc; color: #1a0533; font-weight: bold; }
+  label { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+  input[type=range] { width: 120px; }
+  #info { font-size: 12px; color: #c4b5fd; }
+</style>
+</head>
+<body>
+<canvas id="c" width="600" height="400"></canvas>
+<div class="controls">
+  <button id="btnFlying" class="active" onclick="toggleFlying()">Flying</button>
+  <button id="btnWalking" onclick="toggleFlying()">Walking</button>
+  <label>Angle: <input type="range" id="bodyAngle" min="-40" max="40" value="0"> <span id="angleVal">0°</span></label>
+  <label>Scale: <input type="range" id="scaleSlider" min="1" max="4" step="0.1" value="2.5"> <span id="scaleVal">2.5x</span></label>
+  <label><input type="checkbox" id="showGrid" checked> Grid</label>
+  <label><input type="checkbox" id="showHitbox" checked> Hitbox</label>
+</div>
+<div id="info">Mouse: <span id="coords">-</span></div>
+
+<script type="module">
+import { drawUnicorn } from './src/drawUnicorn.js';
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let flying = true;
+let frame = 0;
+
+window.toggleFlying = function() {
+  flying = !flying;
+  document.getElementById('btnFlying').classList.toggle('active', flying);
+  document.getElementById('btnWalking').classList.toggle('active', !flying);
+};
+
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  const S = parseFloat(document.getElementById('scaleSlider').value);
+  const mx = e.clientX - r.left - canvas.width / 2;
+  const my = e.clientY - r.top  - canvas.height / 2;
+  document.getElementById('coords').textContent =
+    `canvas(${Math.round(mx)}, ${Math.round(my)})  scaled(${(mx/S).toFixed(1)}, ${(my/S).toFixed(1)})`;
+});
+
+document.getElementById('bodyAngle').addEventListener('input', e => {
+  document.getElementById('angleVal').textContent = e.target.value + '°';
+});
+document.getElementById('scaleSlider').addEventListener('input', e => {
+  document.getElementById('scaleVal').textContent = parseFloat(e.target.value).toFixed(1) + 'x';
+});
+
+function drawGrid() {
+  const W = canvas.width, H = canvas.height, cx = W/2, cy = H/2;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= W; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y <= H; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+  ctx.restore();
+}
+
+function loop() {
+  frame++;
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#6ed6ff';
+  ctx.fillRect(0, 0, W, H);
+
+  if (document.getElementById('showGrid').checked) drawGrid();
+
+  const bodyAngle = parseFloat(document.getElementById('bodyAngle').value) * Math.PI / 180;
+  drawUnicorn(ctx, W/2, H/2, bodyAngle, false, frame, !flying, false);
+
+  if (document.getElementById('showHitbox').checked) {
+    ctx.save();
+    ctx.translate(W/2, H/2);
+    ctx.rotate(bodyAngle);
+    ctx.strokeStyle = 'rgba(255,80,80,0.7)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(-35, -19, 70, 38);
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
